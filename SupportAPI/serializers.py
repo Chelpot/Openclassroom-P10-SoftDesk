@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User
+from .models import User, Project, Contributor,Issue
 
 class UserSerializer(serializers.ModelSerializer):
     username = serializers.CharField(max_length=150, validators=[])
@@ -21,3 +21,17 @@ class UserSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
+
+class ProjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = ['id', 'name', 'description', 'type']
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        project = Project.objects.create(author=user, **validated_data)
+        Contributor.objects.create(
+            user=user,
+            project=project,
+        )
+        return project
