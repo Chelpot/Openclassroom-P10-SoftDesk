@@ -35,3 +35,8 @@ class ProjectSerializer(serializers.ModelSerializer):
             project=project,
         )
         return project
+
+class ContributorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contributor
+        fields = ['id', 'user']
