@@ -1,6 +1,7 @@
+import uuid
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-
+from django.conf import settings
 
 class User(AbstractUser):
     age = models.PositiveIntegerField()
@@ -81,3 +82,15 @@ class Issue(models.Model):
 
     def __str__(self):
         return f"[{self.project.name}] - {self.name}"
+
+
+class Comment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    content = models.TextField(verbose_name="Corp du commentaire")
+    created_time = models.DateTimeField(auto_now_add=True)
+
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='comments')
+    issue = models.ForeignKey('Issue', on_delete=models.CASCADE, related_name='comments')
+
+    def __str__(self):
+        return f"Commentaire de {self.author.username} sur l'issue : {self.issue.name} du projet : {self.issue.project.name}"

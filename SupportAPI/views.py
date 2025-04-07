@@ -4,8 +4,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework import generics, permissions, viewsets, status
-from .models import User, Project, Issue, Contributor
-from .serializers import UserSerializer, ProjectSerializer, ContributorSerializer, IssueSerializer
+from .models import User, Project, Issue, Contributor, Comment
+from .serializers import UserSerializer, ProjectSerializer, ContributorSerializer, IssueSerializer, CommentSerializer
 
 
 class CreateUserView(generics.CreateAPIView):
@@ -130,4 +130,40 @@ class IssueViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         if instance.author != self.request.user:
             raise PermissionDenied("Vous devez être l'auteur pour supprimer")
+        instance.delete()
+
+
+
+class CommentViewSet(viewsets.ModelViewSet):
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        issue_id = self.kwargs.get('issue_pk')
+        issue = get_object_or_404(Issue, pk=issue_id)
+
+        if not issue.project.contributors.filter(id=self.request.user.id).exists():
+            raise PermissionDenied("Vous n’êtes pas contributeur de ce projet.")
+
+        return Comment.objects.filter(issue=issue)
+
+    def perform_create(self, serializer):
+        issue_id = self.kwargs.get('issue_pk')
+        issue = get_object_or_404(Issue, pk=issue_id)
+
+        if not issue.project.contributors.filter(id=self.request.user.id).exists():
+            raise PermissionDenied("Vous n’êtes pas contributeur de ce projet.")
+
+        serializer.save(author=self.request.user, issue=issue)
+
+
+    def perform_update(self, serializer):
+        comment = self.get_object()
+        if comment.author != self.request.user:
+            raise PermissionDenied("Vous ne pouvez modifier que vos propres commentaires.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.author != self.request.user:
+            raise PermissionDenied("Vous ne pouvez supprimer que vos propres commentaires.")
         instance.delete()

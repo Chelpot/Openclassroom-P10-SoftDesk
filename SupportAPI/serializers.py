@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Project, Contributor,Issue
+from .models import User, Project, Contributor,Issue, Comment
 
 class UserSerializer(serializers.ModelSerializer):
     username = serializers.CharField(max_length=150, validators=[])
@@ -59,3 +59,10 @@ class IssueSerializer(serializers.ModelSerializer):
         if not Contributor.objects.filter(user=value, project=project).exists():
             raise serializers.ValidationError("L'utilisateur assigné n'est pas contributeur du projet.")
         return value
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = '__all__'
+        read_only_fields = ['id', 'author', 'issue' ,'created_time']
