@@ -76,7 +76,7 @@ class Issue(models.Model):
     priority = models.CharField(max_length=30, choices=ISSUE_CHOICES, verbose_name='Priorité')
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, verbose_name='Status', default=TODO)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='Issues')
-    user_responsible = models.OneToOneField(User, on_delete=models.CASCADE)
+    user_responsible = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='assigned_issues')
     author = models.ForeignKey('User', on_delete=models.CASCADE, related_name='owned_issues')
 
     def __str__(self):

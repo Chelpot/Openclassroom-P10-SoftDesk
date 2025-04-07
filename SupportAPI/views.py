@@ -1,16 +1,16 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework import generics, permissions, viewsets, status
 from .models import User, Project, Issue, Contributor
-from .serializers import UserSerializer, ProjectSerializer, ContributorSerializer
+from .serializers import UserSerializer, ProjectSerializer, ContributorSerializer, IssueSerializer
 
 
 class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-
 
 class ProjectViewSet(viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
@@ -84,3 +84,50 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
         contributor.delete()
         return Response({f"detail": f"Contributeur {user_id} retiré."}, status=status.HTTP_204_NO_CONTENT)
+
+
+class IssueViewSet(viewsets.ModelViewSet):
+    serializer_class = IssueSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        project_id = self.kwargs.get('project_pk')
+        project = get_object_or_404(Project, pk=project_id)
+
+        if not project.contributors.filter(id=self.request.user.id).exists():
+            raise PermissionDenied("Vous n’êtes pas contributeur de ce projet.")
+
+        return Issue.objects.filter(project=project)
+
+    def perform_create(self, serializer):
+        project_id = self.kwargs.get('project_pk')
+        project = get_object_or_404(Project, pk=project_id)
+
+        if not project.contributors.filter(id=self.request.user.id).exists():
+            raise PermissionDenied("Vous n’êtes pas contributeur de ce projet.")
+
+        serializer.save(author=self.request.user, project=project)
+
+
+    def perform_update(self, serializer):
+        issue = self.get_object()
+        user = self.request.user
+        project = issue.project
+
+        # If I am the author, I can edit everything
+        if issue.author == user:
+            serializer.save()
+        # Else if I am a contributor of the project
+        elif project.contributors.filter(id=user.id).exists():
+            if set(serializer.validated_data.keys()) == {'status'}:
+                serializer.save()
+            else:
+                raise PermissionDenied(
+                    "Vous ne pouvez modifier que le statut de cette tâche en TODO / INPROGRESS / FINISHED.")
+        else:
+            raise PermissionDenied("Vous devez être contributeur du projet pour modifier")
+
+    def perform_destroy(self, instance):
+        if instance.author != self.request.user:
+            raise PermissionDenied("Vous devez être l'auteur pour supprimer")
+        instance.delete()

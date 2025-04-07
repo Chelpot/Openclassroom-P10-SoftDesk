@@ -40,3 +40,22 @@ class ContributorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contributor
         fields = ['id', 'user']
+
+
+class IssueSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Issue
+        fields = '__all__'
+        read_only_fields = ['author', 'project']
+
+    def validate_user_responsible(self, value):
+        if value is None:
+            return value
+        if self.instance:
+            project = self.instance.project
+        else:
+            project = self.context.get('project')
+
+        if not Contributor.objects.filter(user=value, project=project).exists():
+            raise serializers.ValidationError("L'utilisateur assigné n'est pas contributeur du projet.")
+        return value
