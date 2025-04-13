@@ -5,7 +5,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from .models import User, Project, Issue, Contributor, Comment
-from .permissions import IsAuthor, IsProjectContributor, IsAuthorOrCanUpdateStatus
+from .permissions import IsAuthor, IsProjectContributor, IsAuthorOrCanUpdateStatus, IsProjectContributorForComment
 from .serializers import UserSerializer, ProjectSerializer, ContributorSerializer, IssueSerializer, CommentSerializer
 
 
@@ -15,7 +15,6 @@ class CreateUserView(generics.CreateAPIView):
 
 class ProjectViewSet(viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     #Called before any action in ViewSet to know permissions (Update/Destroy/Get/Mine/AddContributor/...)
     def get_permissions(self):
@@ -75,7 +74,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
 class IssueViewSet(viewsets.ModelViewSet):
     serializer_class = IssueSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_permissions(self):
         if self.action in ['update', 'destroy']:
@@ -97,34 +95,20 @@ class IssueViewSet(viewsets.ModelViewSet):
 
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsAuthor()]
+        return [permissions.IsAuthenticated(), IsProjectContributorForComment()]
 
     def get_queryset(self):
         issue_id = self.kwargs.get('issue_pk')
-        issue = get_object_or_404(Issue, pk=issue_id)
-
-        if not issue.project.contributors.filter(id=self.request.user.id).exists():
-            raise PermissionDenied("Vous n’êtes pas contributeur de ce projet.")
-
+        project_id = self.kwargs.get('project_pk')
+        issue = get_object_or_404(Issue, id=issue_id, project__id=project_id)
         return Comment.objects.filter(issue=issue)
 
     def perform_create(self, serializer):
         issue_id = self.kwargs.get('issue_pk')
-        issue = get_object_or_404(Issue, pk=issue_id)
-
-        if not issue.project.contributors.filter(id=self.request.user.id).exists():
-            raise PermissionDenied("Vous n’êtes pas contributeur de ce projet.")
-
+        project_id = self.kwargs.get('project_pk')
+        issue = get_object_or_404(Issue, id=issue_id, project__id=project_id)
         serializer.save(author=self.request.user, issue=issue)
-
-
-    def perform_update(self, serializer):
-        comment = self.get_object()
-        if comment.author != self.request.user:
-            raise PermissionDenied("Vous ne pouvez modifier que vos propres commentaires.")
-        serializer.save()
-
-    def perform_destroy(self, instance):
-        if instance.author != self.request.user:
-            raise PermissionDenied("Vous ne pouvez supprimer que vos propres commentaires.")
-        instance.delete()

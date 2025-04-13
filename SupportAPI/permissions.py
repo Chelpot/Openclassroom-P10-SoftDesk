@@ -1,5 +1,7 @@
 from rest_framework.permissions import BasePermission
 from .models import Contributor, Issue
+from django.shortcuts import get_object_or_404
+
 
 
 class IsAuthor(BasePermission):
@@ -35,3 +37,15 @@ class IsAuthorOrCanUpdateStatus(BasePermission):
 
         self.message = "Vous devez être  contributeur de ce projet."
         return False
+
+
+class IsProjectContributorForComment(BasePermission):
+    message = "Vous devez être contributeur du projet pour accéder aux commentaires."
+
+    def has_permission(self, request, view):
+        issue_id = view.kwargs.get("issue_pk")
+        if not issue_id:
+            return False
+
+        issue = get_object_or_404(Issue, id=issue_id)
+        return Contributor.objects.filter(user=request.user, project=issue.project).exists()
