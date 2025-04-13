@@ -14,6 +14,10 @@ class UserSerializer(serializers.ModelSerializer):
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError("Cet utilisateur existe déjà.")
         return value
+    def validate_age(self, value):
+        if value < 15:
+            raise serializers.ValidationError("L'utilisateur doit avoir au moins 15 ans.")
+        return value
 
     def create(self, validated_data):
         password = validated_data.pop('password')
