@@ -23,9 +23,11 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 class ProjectSerializer(serializers.ModelSerializer):
+    author_name = serializers.CharField(source='author.username', read_only=True)
     class Meta:
         model = Project
-        fields = ['id', 'name', 'description', 'type']
+        fields = ['id', 'name', 'description', 'type', 'author', 'author_name']
+        read_only_fields = ['author', 'author_name']
 
     def create(self, validated_data):
         user = self.context['request'].user

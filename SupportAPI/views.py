@@ -6,7 +6,7 @@ from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework import generics, permissions, viewsets, status
 from .models import User, Project, Issue, Contributor, Comment
 from .serializers import UserSerializer, ProjectSerializer, ContributorSerializer, IssueSerializer, CommentSerializer
-
+from .permissions import IsAuthor
 
 class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -16,19 +16,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action in ['update', 'partial_update', 'destroy', 'contributors', 'add_contributor', 'remove_contributor']:
+            return [permissions.IsAuthenticated(), IsAuthor()]
+        return [permissions.IsAuthenticated()]
+
     def get_queryset(self):
         return Project.objects.all()
-
-    def perform_update(self, serializer):
-        project = self.get_object()
-        if project.author != self.request.user:
-            raise PermissionDenied("Vous devez êtres l'auteur du projet pour le modifier.")
-        serializer.save()
-
-    def perform_destroy(self, instance):
-        if instance.author != self.request.user:
-            raise PermissionDenied("Vous devez êtres l'auteur du projet pour le supprimer.")
-        instance.delete()
 
     # get list of projects in with I am a contributor
     @action(detail=False, methods=['get'], url_path='mine')
@@ -50,16 +44,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='add_contributor')
     def add_contributor(self, request, pk=None):
         project = self.get_object()
-        if project.author != request.user:
-            raise PermissionDenied("Vous devez êtres l'auteur pour ajouter un contributeur à ce projet")
-
         serializer = ContributorSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data['user']
             if Contributor.objects.filter(user=user, project=project).exists():
                 return Response(
-                    {"detail": "Ce contributeur existe déja"},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"detail": "Ce contributeur existe déja"}, status=status.HTTP_400_BAD_REQUEST
                 )
             Contributor.objects.create(
                 user=user,
@@ -73,12 +63,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['delete'], url_path='remove_contributor/(?P<user_id>[^/.]+)')
     def remove_contributor(self, request, pk=None, user_id=None):
         project = self.get_object()
-        if project.author != request.user:
-            raise PermissionDenied("Vous devez êtres l'auteur pour ajouter un contributeur à ce projet")
-        try:
-            contributor = Contributor.objects.get(project=project, user__id=user_id)
-        except Contributor.DoesNotExist:
-            raise NotFound("Contributeur introuvable.")
+        contributor = Contributor.objects.get(project=project, user__id=user_id)
         if contributor.user == project.author:
             return Response({"detail": "Vous ne pouvez pas retirer l’auteur des contributeurs."},
                             status=status.HTTP_400_BAD_REQUEST)
@@ -131,7 +116,6 @@ class IssueViewSet(viewsets.ModelViewSet):
         if instance.author != self.request.user:
             raise PermissionDenied("Vous devez être l'auteur pour supprimer")
         instance.delete()
-
 
 
 class CommentViewSet(viewsets.ModelViewSet):
