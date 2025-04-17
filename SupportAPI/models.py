@@ -7,6 +7,7 @@ class User(AbstractUser):
     age = models.PositiveIntegerField()
     can_be_contacted = models.BooleanField(default=False)
     can_data_be_shared = models.BooleanField(default=False)
+    created_time = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.username
@@ -28,6 +29,7 @@ class Project(models.Model):
     name = models.CharField(max_length=30)
     author = models.ForeignKey('User', on_delete=models.CASCADE, related_name='owned_projects')
     description = models.TextField(verbose_name="Description")
+    created_time = models.DateTimeField(auto_now_add=True)
     contributors = models.ManyToManyField(
         to='User',
         through='Contributor',
@@ -79,6 +81,7 @@ class Issue(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='Issues')
     user_responsible = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='assigned_issues')
     author = models.ForeignKey('User', on_delete=models.CASCADE, related_name='owned_issues')
+    created_time = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"[{self.project.name}] - {self.name}"

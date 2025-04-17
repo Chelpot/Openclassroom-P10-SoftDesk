@@ -6,7 +6,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'password', 'email', 'age', 'can_be_contacted', 'can_data_be_shared')
+        fields = ('id', 'username', 'password', 'email', 'age', 'can_be_contacted', 'can_data_be_shared', 'created_time')
         extra_kwargs = {
             'password': {'write_only': True},
         }
@@ -30,7 +30,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     author_name = serializers.CharField(source='author.username', read_only=True)
     class Meta:
         model = Project
-        fields = ['id', 'name', 'description', 'type', 'author', 'author_name']
+        fields = ['id', 'name', 'description', 'type', 'author', 'author_name', 'created_time']
         read_only_fields = ['author', 'author_name']
 
     def create(self, validated_data):
@@ -71,4 +71,4 @@ class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = '__all__'
-        read_only_fields = ['id', 'author', 'issue' ,'created_time']
+        read_only_fields = ['id', 'author', 'issue', 'created_time']
